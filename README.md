@@ -14,9 +14,24 @@ The dehazing results can be found at
 ## Installation
 
 Make sure you have `Python>=3.6` installed on your machine.
-TODO.
+
+**Environment setup:**
+
+1. create conda environment
+
+       conda create -n midline
+       conda activate midline
+
+2. Install dependencies:
+
+   1. Install pytorch==1.8.0 torchvision==0.9.0 (via conda, recommend).
+
+   2. Install other dependencies
+
+          pip install -r requirements.txt
 
 ## Training
+
 1. Set the path of pretrained ResNeXt model in resnext/config.py
 2. Set the path of datasets in config.py
 3. Run by ```python train.py```
@@ -31,6 +46,7 @@ change them as you need.
 Training a model on a single GTX 1080Ti GPU takes about 4 hours.
 
 ## Testing
+
 1. Set the path of five benchmark datasets in config.py.
 2. Put the trained model in `./ckpt/`.
 2. Run by ```python infer.py```
