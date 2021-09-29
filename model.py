@@ -709,15 +709,15 @@ class ours_wo_J0(Base):
         x_fusion = torch.cat((torch.sum(F.softmax(attention_fusion[:, : 4, :, :], 1) * torch.stack(
             (x_p0[:, 0, :, :], x_p1[:, 0, :, :], x_p2[:, 0, :, :], x_p3[:, 0, :, :]), 1), 1, True),
                               torch.sum(F.softmax(attention_fusion[:, 4: 8, :, :], 1) * torch.stack((x_p0[:, 1, :, :],
-                                                                                                      x_p1[:, 1, :, :],
-                                                                                                      x_p2[:, 1, :, :],
-                                                                                                      x_p3[:, 1, :, :]),
-                                                                                                     1), 1, True),
+                                                                                                     x_p1[:, 1, :, :],
+                                                                                                     x_p2[:, 1, :, :],
+                                                                                                     x_p3[:, 1, :, :]),
+                                                                                                    1), 1, True),
                               torch.sum(F.softmax(attention_fusion[:, 8:, :, :], 1) * torch.stack((x_p0[:, 2, :, :],
-                                                                                                    x_p1[:, 2, :, :],
-                                                                                                    x_p2[:, 2, :, :],
-                                                                                                    x_p3[:, 2, :, :]),
-                                                                                                   1), 1, True)),
+                                                                                                   x_p1[:, 2, :, :],
+                                                                                                   x_p2[:, 2, :, :],
+                                                                                                   x_p3[:, 2, :, :]),
+                                                                                                  1), 1, True)),
                              1).clamp(min=0, max=1)
 
         if self.training:

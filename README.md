@@ -11,16 +11,16 @@ This repo is the implementation of
 The dehazing results can be found at 
 [Google Drive](https://drive.google.com/drive/folders/1ZVBI_3Y2NthVLeK7ODMIB5vRjmN9payF?usp=sharing).
 
-## Installation
+## Installation & Preparation
 
 Make sure you have `Python>=3.6` installed on your machine.
 
 **Environment setup:**
 
-1. create conda environment
+1. Create conda environment
 
-       conda create -n midline
-       conda activate midline
+       conda create -n dm2f
+       conda activate dm2f
 
 2. Install dependencies:
 
@@ -29,6 +29,12 @@ Make sure you have `Python>=3.6` installed on your machine.
    2. Install other dependencies
 
           pip install -r requirements.txt
+
+3. Prepare the dataset (RESIDE)
+
+   1. Download the RESIDE dataset from the [official webpage](https://sites.google.com/site/boyilics/website-builder/reside).
+
+   2. Make a directory `./data` and create a symbolic link for uncompressed data `./data/RESIDE`.
 
 ## Training
 

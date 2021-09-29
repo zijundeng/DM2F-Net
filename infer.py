@@ -1,19 +1,16 @@
 # coding: utf-8
 import os
-import cv2
 
 import numpy as np
 import torch
-from PIL import Image
 from torch.autograd import Variable
 from torchvision import transforms
 
-from config import test_sots_root, test_hsts_root
-from misc import check_mkdir, crf_refine
+from config import TEST_SOTS_ROOT
+from misc import check_mkdir
 from model import ours
 from datasets import ImageFolder2
 from torch.utils.data import DataLoader
-from torch import nn
 from skimage.metrics import peak_signal_noise_ratio
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
@@ -27,7 +24,7 @@ args = {
     'snapshot': 'iter_40000_loss_0.01221_lr_0.000000'
 }
 
-to_test = {'SOTS': test_sots_root}
+to_test = {'SOTS': TEST_SOTS_ROOT}
 
 to_pil = transforms.ToPILImage()
 

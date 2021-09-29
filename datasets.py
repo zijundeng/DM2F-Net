@@ -5,10 +5,9 @@ import torch
 import torch.utils.data as data
 import scipy.io as sio
 from PIL import Image
-from torchvision.transforms import ToTensor, Resize
+from torchvision.transforms import ToTensor
 import random
 from torchvision import transforms
-import numpy as np
 
 
 def make_dataset(root):

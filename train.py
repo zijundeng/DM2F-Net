@@ -9,7 +9,7 @@ from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
-from config import train_its_root, test_sots_root
+from config import TRAIN_ITS_ROOT, TEST_SOTS_ROOT
 from datasets import ITS, ImageFolder2
 from misc import AvgMeter, check_mkdir
 from model import ours
@@ -35,9 +35,9 @@ args = {
     'crop_size': 256
 }
 
-train_set = ITS(train_its_root, True, args['crop_size'])
+train_set = ITS(TRAIN_ITS_ROOT, True, args['crop_size'])
 train_loader = DataLoader(train_set, batch_size=args['train_batch_size'], num_workers=16, shuffle=True, drop_last=True)
-val_set = ImageFolder2(test_sots_root)
+val_set = ImageFolder2(TEST_SOTS_ROOT)
 val_loader = DataLoader(val_set, batch_size=8)
 
 criterion = nn.L1Loss().cuda()
