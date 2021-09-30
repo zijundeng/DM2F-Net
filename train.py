@@ -1,6 +1,6 @@
 # coding: utf-8
-import datetime
 import os
+import datetime
 
 import torch
 from torch import nn
@@ -10,9 +10,10 @@ from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
 from config import TRAIN_ITS_ROOT, TEST_SOTS_ROOT
-from datasets import ITS, ImageFolder2
+from datasets import ItsDataset, SotsDataset
 from misc import AvgMeter, check_mkdir
 from model import ours
+
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 cudnn.benchmark = True
@@ -35,10 +36,12 @@ args = {
     'crop_size': 256
 }
 
-train_set = ITS(TRAIN_ITS_ROOT, True, args['crop_size'])
-train_loader = DataLoader(train_set, batch_size=args['train_batch_size'], num_workers=16, shuffle=True, drop_last=True)
-val_set = ImageFolder2(TEST_SOTS_ROOT)
-val_loader = DataLoader(val_set, batch_size=8)
+train_dataset = ItsDataset(TRAIN_ITS_ROOT, True, args['crop_size'])
+train_loader = DataLoader(train_dataset, batch_size=args['train_batch_size'], num_workers=8,
+                          shuffle=True, drop_last=True)
+
+val_dataset = SotsDataset(TEST_SOTS_ROOT)
+val_loader = DataLoader(val_dataset, batch_size=8)
 
 criterion = nn.L1Loss().cuda()
 log_path = os.path.join(ckpt_path, exp_name, str(datetime.datetime.now()) + '.txt')
@@ -70,7 +73,8 @@ def main():
 
 def train(net, optimizer):
     curr_iter = args['last_iter']
-    while True:
+
+    while curr_iter <= args['iter_num']:
         train_loss_record = AvgMeter()
         loss_x_fusion_record, loss_x_phy_record, loss_x_p0_record, loss_x_p1_record, loss_x_p2_record, loss_x_p3_record, loss_t_record, loss_a_record = AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter()
         for data in train_loader:
@@ -132,9 +136,6 @@ def train(net, optimizer):
 
             if (curr_iter + 1) % args['val_freq'] == 0:
                 validate(net, curr_iter, optimizer)
-
-            if curr_iter > args['iter_num']:
-                return
 
 
 def validate(net, curr_iter, optimizer):

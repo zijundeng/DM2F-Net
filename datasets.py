@@ -9,11 +9,14 @@ from torchvision.transforms import ToTensor
 import random
 from torchvision import transforms
 
+to_tensor = ToTensor()
+
 
 def make_dataset(root):
     return [(os.path.join(root, 'hazy', img_name),
              os.path.join(root, 'trans', img_name),
-             os.path.join(root, 'gt', img_name)) for img_name in os.listdir(os.path.join(root, 'hazy'))]
+             os.path.join(root, 'gt', img_name))
+            for img_name in os.listdir(os.path.join(root, 'hazy'))]
 
 
 def make_dataset_its(root):
@@ -74,19 +77,9 @@ def make_dataset_oihaze_test(root):
     return items
 
 
-to_tensor = ToTensor()
-
-
-def random_crop(size, haze, trans, gt):
-        w, h = haze.size
-
-        x1 = random.randint(0, w - size)
-        y1 = random.randint(0, h - size)
-        return haze.crop((x1, y1, x1 + size, y1 + size)), trans.crop((x1, y1, x1 + size, y1 + size)), gt.crop((x1, y1, x1 + size, y1 + size))
-
-
-def random_crop2(size, haze, gt):
+def random_crop(size, haze, gt, extra=None):
     w, h = haze.size
+    assert haze.size == gt.size
 
     if w < size or h < size:
         haze = transforms.Resize(size)(haze)
@@ -95,17 +88,17 @@ def random_crop2(size, haze, gt):
 
     x1 = random.randint(0, w - size)
     y1 = random.randint(0, h - size)
-    return haze.crop((x1, y1, x1 + size, y1 + size)), gt.crop((x1, y1, x1 + size, y1 + size))
 
+    _haze = haze.crop((x1, y1, x1 + size, y1 + size))
+    _gt = gt.crop((x1, y1, x1 + size, y1 + size))
 
-def random_crop3(size, haze, gt, predict):
-    w, h = haze.size
-    assert haze.size == gt.size
-    assert gt.size == predict.size
-
-    x1 = random.randint(0, w - size)
-    y1 = random.randint(0, h - size)
-    return haze.crop((x1, y1, x1 + size, y1 + size)), gt.crop((x1, y1, x1 + size, y1 + size)), predict.crop((x1, y1, x1 + size, y1 + size))
+    if extra is None:
+        return _haze, _gt
+    else:
+        # extra: trans or predict
+        assert haze.size == extra.size
+        _extra = extra.crop((x1, y1, x1 + size, y1 + size))
+        return _haze, _gt, _extra
 
 
 class ImageFolder(data.Dataset):
@@ -139,13 +132,18 @@ class ImageFolder(data.Dataset):
         trans = to_tensor(trans)
         gt = to_tensor(gt)
         gt_ato = torch.Tensor([self.gt_ato_dict[name][0, 0]]).float()
+
         return haze, trans, gt_ato, gt, name
 
     def __len__(self):
         return len(self.imgs)
 
 
-class ITS(data.Dataset):
+class ItsDataset(data.Dataset):
+    """
+    For RESIDE Indoor
+    """
+
     def __init__(self, root, flip=False, crop=None):
         self.root = root
         self.imgs = make_dataset_its(root)
@@ -164,7 +162,7 @@ class ITS(data.Dataset):
         assert trans.size == gt.size
 
         if self.crop:
-            haze, trans, gt = random_crop(self.crop, haze, trans, gt)
+            haze, gt, trans = random_crop(self.crop, haze, gt, trans)
 
         if self.flip and random.random() < 0.5:
             haze = haze.transpose(Image.FLIP_LEFT_RIGHT)
@@ -175,13 +173,18 @@ class ITS(data.Dataset):
         trans = to_tensor(trans)
         gt = to_tensor(gt)
         gt_ato = torch.Tensor([ato]).float()
+
         return haze, trans, gt_ato, gt, name
 
     def __len__(self):
         return len(self.imgs)
 
 
-class OTS(data.Dataset):
+class OtsDataset(data.Dataset):
+    """
+    For RESIDE Outdoor
+    """
+
     def __init__(self, root, flip=False, crop=None):
         self.root = root
         self.imgs = make_dataset_ots(root)
@@ -198,7 +201,7 @@ class OTS(data.Dataset):
         assert haze.size == gt.size
 
         if self.crop:
-            haze, gt = random_crop2(self.crop, haze, gt)
+            haze, gt = random_crop(self.crop, haze, gt)
 
         if self.flip and random.random() < 0.5:
             haze = haze.transpose(Image.FLIP_LEFT_RIGHT)
@@ -206,6 +209,33 @@ class OTS(data.Dataset):
 
         haze = to_tensor(haze)
         gt = to_tensor(gt)
+
+        return haze, gt, name
+
+    def __len__(self):
+        return len(self.imgs)
+
+
+class SotsDataset(data.Dataset):
+    def __init__(self, root, mode='train'):
+        self.root = root
+        self.imgs = make_dataset(root)
+        self.mode = mode
+
+    def __getitem__(self, index):
+        haze_path, trans_path, gt_path = self.imgs[index]
+        name = os.path.splitext(os.path.split(haze_path)[1])[0]
+
+        haze = Image.open(haze_path).convert('RGB')
+        haze = to_tensor(haze)
+
+        idx0 = name.split('_')[0]
+        gt = Image.open(os.path.join(self.root, 'gt', idx0 + '.png')).convert('RGB')
+        gt = to_tensor(gt)
+        if gt.shape != haze.shape:
+            # crop the indoor images
+            gt = gt[:, 10: 470, 10: 630]
+
         return haze, gt, name
 
     def __len__(self):
@@ -233,7 +263,7 @@ class OIHaze(data.Dataset):
         gt = Image.open(gt_path).convert('RGB')
 
         if self.crop:
-            haze, gt = random_crop2(self.crop, haze, gt)
+            haze, gt = random_crop(self.crop, haze, gt)
 
         if self.flip and random.random() < 0.5:
             haze = haze.transpose(Image.FLIP_LEFT_RIGHT)
@@ -304,7 +334,7 @@ class OIHaze_T(data.Dataset):
             predict = Image.open(predict_path).convert('RGB')
 
             if self.crop:
-                haze, gt, predict = random_crop3(self.crop, haze, gt, predict)
+                haze, gt, predict = random_crop(self.crop, haze, gt, predict)
 
             if self.flip and random.random() < 0.5:
                 haze = haze.transpose(Image.FLIP_LEFT_RIGHT)
@@ -359,7 +389,7 @@ class OIHaze2(data.Dataset):
                 gt = gt.rotate(rotate_degree, Image.BILINEAR)
 
             if self.crop:
-                haze, gt = random_crop2(self.crop, haze, gt)
+                haze, gt = random_crop(self.crop, haze, gt)
 
             if self.flip and random.random() < 0.5:
                 haze = haze.transpose(Image.FLIP_LEFT_RIGHT)
@@ -402,7 +432,7 @@ class OIHaze2_2(data.Dataset):
             haze_lr = to_tensor(haze_lr)
 
         if self.crop:
-            haze, gt = random_crop2(self.crop, haze, gt)
+            haze, gt = random_crop(self.crop, haze, gt)
 
         haze = to_tensor(haze)
         gt = to_tensor(gt)
@@ -437,7 +467,7 @@ class OIHaze4(data.Dataset):
 
         if self.mode == 'train':
             if self.crop:
-                haze, gt = random_crop2(self.crop, haze, gt)
+                haze, gt = random_crop(self.crop, haze, gt)
         else:
             haze_512 = to_tensor(transforms.Resize(512)(haze))
             haze_1024 = to_tensor(transforms.Resize(1024)(haze))
@@ -477,33 +507,6 @@ class OIHaze3(data.Dataset):
 
     def __len__(self):
         return len(self.img_name_list)
-
-
-class ImageFolder2(data.Dataset):
-    def __init__(self, root, mode='train'):
-        self.root = root
-        self.imgs = make_dataset(root)
-        self.mode = mode
-
-    def __getitem__(self, index):
-        haze_path, trans_path, gt_path = self.imgs[index]
-        name = os.path.splitext(os.path.split(haze_path)[1])[0]
-
-        haze = Image.open(haze_path).convert('RGB')
-        haze = to_tensor(haze)
-
-        if self.mode == 'train':
-            idx0 = name.split('_')[0]
-            gt = Image.open(os.path.join(self.root, 'gt', idx0 + '.png')).convert('RGB')
-            gt = to_tensor(gt)
-            if gt.shape != haze.shape:
-                gt = gt[:, 10: 470, 10: 630]
-            return haze, gt, name
-        else:
-            return haze, name
-
-    def __len__(self):
-        return len(self.imgs)
 
 
 class ImageFolder3(data.Dataset):

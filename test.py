@@ -9,7 +9,7 @@ from torchvision import transforms
 from config import TEST_SOTS_ROOT
 from misc import check_mkdir
 from model import ours
-from datasets import ImageFolder2
+from datasets import SotsDataset
 from torch.utils.data import DataLoader
 from skimage.metrics import peak_signal_noise_ratio
 
@@ -60,7 +60,7 @@ def main():
     #             for r, f in zip(res.cpu(), fs):
     #                 to_pil(r).save(os.path.join(ckpt_path, exp_name, '(%s) %s_%s' % (exp_name, name, args['snapshot']), '%s.png' % f))
     for name, root in to_test.items():
-        dataset = ImageFolder2(root, 'train')
+        dataset = SotsDataset(root, 'train')
         dataloader = DataLoader(dataset, batch_size=1)
 
         for idx, data in enumerate(dataloader):
@@ -73,7 +73,7 @@ def main():
 
             img_var = Variable(haze_image, volatile=True).cuda()
             res = net(img_var).data
-            
+
             for i in range(len(fs)):
                 r = res[i].cpu().numpy().transpose([1, 2, 0])
                 gt = gts[i].cpu().numpy().transpose([1, 2, 0])
