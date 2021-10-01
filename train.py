@@ -5,14 +5,13 @@ import datetime
 import torch
 from torch import nn
 from torch import optim
-from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
 from config import TRAIN_ITS_ROOT, TEST_SOTS_ROOT
 from datasets import ItsDataset, SotsDataset
-from misc import AvgMeter, check_mkdir
-from model import ours
+from utils import AvgMeter, check_mkdir
+from model import DM2FNet
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -21,7 +20,7 @@ cudnn.benchmark = True
 torch.cuda.set_device(0)
 
 ckpt_path = './ckpt'
-exp_name = '(ablation8 its) ours'
+exp_name = 'RESIDE_ITS'
 
 args = {
     'iter_num': 40000,
@@ -48,7 +47,7 @@ log_path = os.path.join(ckpt_path, exp_name, str(datetime.datetime.now()) + '.tx
 
 
 def main():
-    net = ours().cuda().train()
+    net = DM2FNet().cuda().train()
     # net = nn.DataParallel(net)
 
     optimizer = optim.Adam([
@@ -76,66 +75,75 @@ def train(net, optimizer):
 
     while curr_iter <= args['iter_num']:
         train_loss_record = AvgMeter()
-        loss_x_fusion_record, loss_x_phy_record, loss_x_p0_record, loss_x_p1_record, loss_x_p2_record, loss_x_p3_record, loss_t_record, loss_a_record = AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter(), AvgMeter()
+        loss_x_jf_record, loss_x_j0_record = AvgMeter(), AvgMeter()
+        loss_x_j1_record, loss_x_j2_record = AvgMeter(), AvgMeter()
+        loss_x_j3_record, loss_x_j4_record = AvgMeter(), AvgMeter()
+        loss_t_record, loss_a_record = AvgMeter(), AvgMeter()
+
         for data in train_loader:
-            optimizer.param_groups[0]['lr'] = 2 * args['lr'] * (1 - float(curr_iter) / args['iter_num']
-                                                                ) ** args['lr_decay']
-            optimizer.param_groups[1]['lr'] = args['lr'] * (1 - float(curr_iter) / args['iter_num']
-                                                            ) ** args['lr_decay']
+            optimizer.param_groups[0]['lr'] = 2 * args['lr'] * (1 - float(curr_iter) / args['iter_num']) \
+                                              ** args['lr_decay']
+            optimizer.param_groups[1]['lr'] = args['lr'] * (1 - float(curr_iter) / args['iter_num']) \
+                                              ** args['lr_decay']
 
-            haze_image, gt_trans_map, gt_ato, gt, _ = data
+            haze, gt_trans_map, gt_ato, gt, _ = data
 
-            batch_size = haze_image.size(0)
+            batch_size = haze.size(0)
 
-            haze_image = Variable(haze_image).cuda()
-            gt_trans_map = Variable(gt_trans_map).cuda()
-            gt_ato = Variable(gt_ato).cuda()
-            gt = Variable(gt).cuda()
+            haze = haze.cuda()
+            gt_trans_map = gt_trans_map.cuda()
+            gt_ato = gt_ato.cuda()
+            gt = gt.cuda()
 
             optimizer.zero_grad()
 
-            x_fusion, x_phy, x_p0, x_p1, x_p2, x_p3, t, a = net(haze_image)
+            x_jf, x_j0, x_j1, x_j2, x_j3, x_j4, t, a = net(haze)
 
-            loss_x_fusion = criterion(x_fusion, gt)
-            loss_x_phy = criterion(x_phy, gt)
-            loss_x_p0 = criterion(x_p0, gt)
-            loss_x_p1 = criterion(x_p1, gt)
-            loss_x_p2 = criterion(x_p2, gt)
-            loss_x_p3 = criterion(x_p3, gt)
+            loss_x_jf = criterion(x_jf, gt)
+            loss_x_j0 = criterion(x_j0, gt)
+            loss_x_j1 = criterion(x_j1, gt)
+            loss_x_j2 = criterion(x_j2, gt)
+            loss_x_j3 = criterion(x_j3, gt)
+            loss_x_j4 = criterion(x_j4, gt)
 
             loss_t = criterion(t, gt_trans_map)
             loss_a = criterion(a, gt_ato)
 
-            loss = loss_x_fusion + loss_x_p0 + loss_x_p1 + loss_x_p2 + loss_x_p3 + loss_x_phy + 10 * loss_t + loss_a
+            loss = loss_x_jf + loss_x_j0 + loss_x_j1 + loss_x_j2 + loss_x_j3 + loss_x_j4 \
+                   + 10 * loss_t + loss_a
             loss.backward()
 
             optimizer.step()
 
-            train_loss_record.update(loss.data, batch_size)
+            # update recorder
+            train_loss_record.update(loss.item(), batch_size)
 
-            loss_x_fusion_record.update(loss_x_fusion.data, batch_size)
-            loss_x_phy_record.update(loss_x_phy.data, batch_size)
-            loss_x_p0_record.update(loss_x_p0.data, batch_size)
-            loss_x_p1_record.update(loss_x_p1.data, batch_size)
-            loss_x_p2_record.update(loss_x_p2.data, batch_size)
-            loss_x_p3_record.update(loss_x_p3.data, batch_size)
+            loss_x_jf_record.update(loss_x_jf.item(), batch_size)
+            loss_x_j0_record.update(loss_x_j0.item(), batch_size)
+            loss_x_j1_record.update(loss_x_j1.item(), batch_size)
+            loss_x_j2_record.update(loss_x_j2.item(), batch_size)
+            loss_x_j3_record.update(loss_x_j3.item(), batch_size)
+            loss_x_j4_record.update(loss_x_j4.item(), batch_size)
 
-            loss_t_record.update(loss_t.data, batch_size)
-            loss_a_record.update(loss_a.data, batch_size)
+            loss_t_record.update(loss_t.item(), batch_size)
+            loss_a_record.update(loss_a.item(), batch_size)
 
             curr_iter += 1
 
-            log = '[iter %d], [train loss %.5f], [loss_x_fusion %.5f], [loss_x_phy %.5f], [loss_x_p0 %.5f], ' \
-                  '[loss_x_p1 %.5f], [loss_x_p2 %.5f], [loss_x_p3 %.5f], [loss_t %.5f], [loss_a %.5f], ' \
+            log = '[iter %d], [train loss %.5f], [loss_x_fusion %.5f], [loss_x_phy %.5f], [loss_x_j1 %.5f], ' \
+                  '[loss_x_j2 %.5f], [loss_x_j3 %.5f], [loss_x_j4 %.5f], [loss_t %.5f], [loss_a %.5f], ' \
                   '[lr %.13f]' % \
-                  (curr_iter, train_loss_record.avg, loss_x_fusion_record.avg, loss_x_phy_record.avg,
-                   loss_x_p0_record.avg, loss_x_p1_record.avg, loss_x_p2_record.avg, loss_x_p3_record.avg,
+                  (curr_iter, train_loss_record.avg, loss_x_jf_record.avg, loss_x_j0_record.avg,
+                   loss_x_j1_record.avg, loss_x_j2_record.avg, loss_x_j3_record.avg, loss_x_j4_record.avg,
                    loss_t_record.avg, loss_a_record.avg, optimizer.param_groups[1]['lr'])
             print(log)
             open(log_path, 'a').write(log + '\n')
 
             if (curr_iter + 1) % args['val_freq'] == 0:
                 validate(net, curr_iter, optimizer)
+
+            if curr_iter > args['iter_num']:
+                break
 
 
 def validate(net, curr_iter, optimizer):
@@ -146,25 +154,15 @@ def validate(net, curr_iter, optimizer):
 
     with torch.no_grad():
         for i, data in enumerate(val_loader):
-            haze_image, gt, _ = data
+            haze, gt, _ = data
 
-            haze_image = Variable(haze_image).cuda()
-            gt = Variable(gt).cuda()
+            haze = haze.cuda()
+            gt = gt.cuda()
 
-            dehaze = net(haze_image)
+            dehaze = net(haze)
 
             loss = criterion(dehaze, gt)
-            loss_record.update(loss.data, haze_image.size(0))
-    # for i, data in enumerate(val_loader):
-    #     haze_image, gt, _ = data
-    #
-    #     haze_image = Variable(haze_image, volatile=True).cuda()
-    #     gt = Variable(gt, volatile=True).cuda()
-    #
-    #     dehaze = net(haze_image)
-    #
-    #     loss = criterion(dehaze, gt)
-    #     loss_record.update(loss.data, haze_image.size(0))
+            loss_record.update(loss.data, haze.size(0))
 
     snapshot_name = 'iter_%d_loss_%.5f_lr_%.6f' % (curr_iter + 1, loss_record.avg, optimizer.param_groups[1]['lr'])
     print('[validate]: [iter %d], [loss %.5f]' % (curr_iter + 1, loss_record.avg))

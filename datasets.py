@@ -217,7 +217,7 @@ class OtsDataset(data.Dataset):
 
 
 class SotsDataset(data.Dataset):
-    def __init__(self, root, mode='train'):
+    def __init__(self, root, mode=None):
         self.root = root
         self.imgs = make_dataset(root)
         self.mode = mode
