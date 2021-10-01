@@ -13,7 +13,7 @@ The dehazing results can be found at
 
 ## Installation & Preparation
 
-Make sure you have `Python>=3.6` installed on your machine.
+Make sure you have `Python>=3.7` installed on your machine.
 
 **Environment setup:**
 
@@ -22,7 +22,7 @@ Make sure you have `Python>=3.6` installed on your machine.
        conda create -n dm2f
        conda activate dm2f
 
-2. Install dependencies:
+2. Install dependencies (test with PyTorch 1.8.0):
 
    1. Install pytorch==1.8.0 torchvision==0.9.0 (via conda, recommend).
 
@@ -42,22 +42,24 @@ Make sure you have `Python>=3.6` installed on your machine.
 2. Set the path of datasets in config.py
 3. Run by ```python train.py```
 
-The pretrained ResNeXt model is ported from the [official](https://github.com/facebookresearch/ResNeXt) torch version,
+~~The pretrained ResNeXt model is ported from the [official](https://github.com/facebookresearch/ResNeXt) torch version,
 using the [convertor](https://github.com/clcarwin/convert_torch_to_pytorch) provided by clcarwin. 
-You can directly [download](https://drive.google.com/open?id=1dnH-IHwmu9xFPlyndqI6MfF4LvH6JKNQ) the pretrained model ported by me.
+You can directly [download](https://drive.google.com/open?id=1dnH-IHwmu9xFPlyndqI6MfF4LvH6JKNQ) the pretrained model ported by me.~~
 
-*Hyper-parameters* of training were gathered at the beginning of *train.py* and you can conveniently 
+Use pretrained ResNeXt (resnext101_32x8d) from torchvision.
+
+*Hyper-parameters* of training were set at the top of *train.py*, and you can conveniently
 change them as you need.
 
-Training a model on a single GTX 1080Ti GPU takes about 4 hours.
+Training a model on a single ~~GTX 1080Ti~~ TITAN RTX GPU takes about ~~4~~ 5 hours.
 
 ## Testing
 
 1. Set the path of five benchmark datasets in config.py.
 2. Put the trained model in `./ckpt/`.
-2. Run by ```python infer.py```
+2. Run by ```python test.py```
 
-*Settings* of testing were gathered at the beginning of *infer.py* and you can conveniently 
+*Settings* of testing were set at the top of `test.py`, and you can conveniently
 change them as you need.
 
 ## License

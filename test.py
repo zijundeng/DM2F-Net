@@ -20,7 +20,7 @@ torch.cuda.set_device(0)
 ckpt_path = './ckpt'
 exp_name = 'RESIDE_ITS'
 args = {
-    'snapshot': 'iter_40000_loss_0.01256_lr_0.000000'
+    'snapshot': 'iter_40000_loss_0.01230_lr_0.000000'
 }
 
 to_test = {'SOTS': TEST_SOTS_ROOT}

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+import torchvision.models as models
 from resnext import ResNeXt101
 
 
@@ -727,16 +728,23 @@ class ours_wo_J0(Base):
 
 
 class DM2FNet(Base):
-    def __init__(self, num_features=128):
+    def __init__(self, num_features=128, arch='resnext101_32x8d'):
         super(DM2FNet, self).__init__()
         self.num_features = num_features
 
-        resnext = ResNeXt101()
-        self.layer0 = resnext.layer0
-        self.layer1 = resnext.layer1
-        self.layer2 = resnext.layer2
-        self.layer3 = resnext.layer3
-        self.layer4 = resnext.layer4
+        # resnext = ResNeXt101()
+        #
+        # self.layer0 = resnext.layer0
+        # self.layer1 = resnext.layer1
+        # self.layer2 = resnext.layer2
+        # self.layer3 = resnext.layer3
+        # self.layer4 = resnext.layer4
+
+        assert arch in ['resnet50', 'resnet101',
+                        'resnet152', 'resnext50_32x4d', 'resnext101_32x8d']
+        backbone = models.__dict__[arch](pretrained=True)
+        del backbone.fc
+        self.backbone = backbone
 
         self.down1 = nn.Sequential(
             nn.Conv2d(256, num_features, kernel_size=1), nn.SELU()
@@ -826,11 +834,23 @@ class DM2FNet(Base):
     def forward(self, x0, x0_hd=None):
         x = (x0 - self.mean) / self.std
 
-        layer0 = self.layer0(x)
-        layer1 = self.layer1(layer0)
-        layer2 = self.layer2(layer1)
-        layer3 = self.layer3(layer2)
-        layer4 = self.layer4(layer3)
+        backbone = self.backbone
+
+        layer0 = backbone.conv1(x)
+        layer0 = backbone.bn1(layer0)
+        layer0 = backbone.relu(layer0)
+        layer0 = backbone.maxpool(layer0)
+
+        layer1 = backbone.layer1(layer0)
+        layer2 = backbone.layer2(layer1)
+        layer3 = backbone.layer3(layer2)
+        layer4 = backbone.layer4(layer3)
+
+        # layer0 = self.layer0(x)
+        # layer1 = self.layer1(layer0)
+        # layer2 = self.layer2(layer1)
+        # layer3 = self.layer3(layer2)
+        # layer4 = self.layer4(layer3)
 
         down1 = self.down1(layer1)
         down2 = self.down2(layer2)
