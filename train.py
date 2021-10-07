@@ -30,6 +30,7 @@ def parse_args():
 
 
 cfgs = {
+    'use_physical': True,
     'iter_num': 40000,
     'train_batch_size': 16,
     'last_iter': 0,
