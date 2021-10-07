@@ -1,4 +1,5 @@
 # coding: utf-8
+import argparse
 import os
 import datetime
 
@@ -13,16 +14,22 @@ from datasets import ItsDataset, SotsDataset
 from tools.utils import AvgMeter, check_mkdir
 from model import DM2FNet
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-cudnn.benchmark = True
+def parse_args():
+    parser = argparse.ArgumentParser(description='Train a DM2FNet')
+    parser.add_argument(
+        '--gpus', type=str, default='0', help='gpus to use ')
+    parser.add_argument('--ckpt-path', default='./ckpt', help='checkpoint path')
+    parser.add_argument(
+        '--exp-name',
+        default='RESIDE_ITS',
+        help='experiment name.')
+    args = parser.parse_args()
 
-torch.cuda.set_device(0)
+    return args
 
-ckpt_path = './ckpt'
-exp_name = 'RESIDE_ITS'
 
-args = {
+cfgs = {
     'iter_num': 40000,
     'train_batch_size': 16,
     'last_iter': 0,
@@ -35,45 +42,39 @@ args = {
     'crop_size': 256
 }
 
-train_dataset = ItsDataset(TRAIN_ITS_ROOT, True, args['crop_size'])
-train_loader = DataLoader(train_dataset, batch_size=args['train_batch_size'], num_workers=8,
-                          shuffle=True, drop_last=True)
-
-val_dataset = SotsDataset(TEST_SOTS_ROOT)
-val_loader = DataLoader(val_dataset, batch_size=8)
-
-criterion = nn.L1Loss().cuda()
-log_path = os.path.join(ckpt_path, exp_name, str(datetime.datetime.now()) + '.txt')
-
 
 def main():
     net = DM2FNet().cuda().train()
     # net = nn.DataParallel(net)
 
     optimizer = optim.Adam([
-        {'params': [param for name, param in net.named_parameters() if name[-4:] == 'bias' and param.requires_grad],
-         'lr': 2 * args['lr']},
-        {'params': [param for name, param in net.named_parameters() if name[-4:] != 'bias' and param.requires_grad],
-         'lr': args['lr'], 'weight_decay': args['weight_decay']}
+        {'params': [param for name, param in net.named_parameters()
+                    if name[-4:] == 'bias' and param.requires_grad],
+         'lr': 2 * cfgs['lr']},
+        {'params': [param for name, param in net.named_parameters()
+                    if name[-4:] != 'bias' and param.requires_grad],
+         'lr': cfgs['lr'], 'weight_decay': cfgs['weight_decay']}
     ])
 
-    if len(args['snapshot']) > 0:
-        print('training resumes from \'%s\'' % args['snapshot'])
-        net.load_state_dict(torch.load(os.path.join(ckpt_path, exp_name, args['snapshot'] + '.pth')))
-        optimizer.load_state_dict(torch.load(os.path.join(ckpt_path, exp_name, args['snapshot'] + '_optim.pth')))
-        optimizer.param_groups[0]['lr'] = 2 * args['lr']
-        optimizer.param_groups[1]['lr'] = args['lr']
+    if len(cfgs['snapshot']) > 0:
+        print('training resumes from \'%s\'' % cfgs['snapshot'])
+        net.load_state_dict(torch.load(os.path.join(args.ckpt_path,
+                                                    args.exp_name, cfgs['snapshot'] + '.pth')))
+        optimizer.load_state_dict(torch.load(os.path.join(args.ckpt_path,
+                                                          args.exp_name, cfgs['snapshot'] + '_optim.pth')))
+        optimizer.param_groups[0]['lr'] = 2 * cfgs['lr']
+        optimizer.param_groups[1]['lr'] = cfgs['lr']
 
-    check_mkdir(ckpt_path)
-    check_mkdir(os.path.join(ckpt_path, exp_name))
-    open(log_path, 'w').write(str(args) + '\n\n')
+    check_mkdir(args.ckpt_path)
+    check_mkdir(os.path.join(args.ckpt_path, args.exp_name))
+    open(log_path, 'w').write(str(cfgs) + '\n\n')
     train(net, optimizer)
 
 
 def train(net, optimizer):
-    curr_iter = args['last_iter']
+    curr_iter = cfgs['last_iter']
 
-    while curr_iter <= args['iter_num']:
+    while curr_iter <= cfgs['iter_num']:
         train_loss_record = AvgMeter()
         loss_x_jf_record, loss_x_j0_record = AvgMeter(), AvgMeter()
         loss_x_j1_record, loss_x_j2_record = AvgMeter(), AvgMeter()
@@ -81,10 +82,10 @@ def train(net, optimizer):
         loss_t_record, loss_a_record = AvgMeter(), AvgMeter()
 
         for data in train_loader:
-            optimizer.param_groups[0]['lr'] = 2 * args['lr'] * (1 - float(curr_iter) / args['iter_num']) \
-                                              ** args['lr_decay']
-            optimizer.param_groups[1]['lr'] = args['lr'] * (1 - float(curr_iter) / args['iter_num']) \
-                                              ** args['lr_decay']
+            optimizer.param_groups[0]['lr'] = 2 * cfgs['lr'] * (1 - float(curr_iter) / cfgs['iter_num']) \
+                                              ** cfgs['lr_decay']
+            optimizer.param_groups[1]['lr'] = cfgs['lr'] * (1 - float(curr_iter) / cfgs['iter_num']) \
+                                              ** cfgs['lr_decay']
 
             haze, gt_trans_map, gt_ato, gt, _ = data
 
@@ -139,10 +140,10 @@ def train(net, optimizer):
             print(log)
             open(log_path, 'a').write(log + '\n')
 
-            if (curr_iter + 1) % args['val_freq'] == 0:
+            if (curr_iter + 1) % cfgs['val_freq'] == 0:
                 validate(net, curr_iter, optimizer)
 
-            if curr_iter > args['iter_num']:
+            if curr_iter > cfgs['iter_num']:
                 break
 
 
@@ -166,11 +167,29 @@ def validate(net, curr_iter, optimizer):
 
     snapshot_name = 'iter_%d_loss_%.5f_lr_%.6f' % (curr_iter + 1, loss_record.avg, optimizer.param_groups[1]['lr'])
     print('[validate]: [iter %d], [loss %.5f]' % (curr_iter + 1, loss_record.avg))
-    torch.save(net.state_dict(), os.path.join(ckpt_path, exp_name, snapshot_name + '.pth'))
-    torch.save(optimizer.state_dict(), os.path.join(ckpt_path, exp_name, snapshot_name + '_optim.pth'))
+    torch.save(net.state_dict(),
+               os.path.join(args.ckpt_path, args.exp_name, snapshot_name + '.pth'))
+    torch.save(optimizer.state_dict(),
+               os.path.join(args.ckpt_path, args.exp_name, snapshot_name + '_optim.pth'))
 
     net.train()
 
 
 if __name__ == '__main__':
+    args = parse_args()
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
+    cudnn.benchmark = True
+    torch.cuda.set_device(int(args.gpus))
+
+    train_dataset = ItsDataset(TRAIN_ITS_ROOT, True, cfgs['crop_size'])
+    train_loader = DataLoader(train_dataset, batch_size=cfgs['train_batch_size'], num_workers=4,
+                              shuffle=True, drop_last=True)
+
+    val_dataset = SotsDataset(TEST_SOTS_ROOT)
+    val_loader = DataLoader(val_dataset, batch_size=8)
+
+    criterion = nn.L1Loss().cuda()
+    log_path = os.path.join(args.ckpt_path, args.exp_name, str(datetime.datetime.now()) + '.txt')
+
     main()
