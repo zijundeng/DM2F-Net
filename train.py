@@ -8,9 +8,9 @@ from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
-from config import TRAIN_ITS_ROOT, TEST_SOTS_ROOT
+from tools.config import TRAIN_ITS_ROOT, TEST_SOTS_ROOT
 from datasets import ItsDataset, SotsDataset
-from utils import AvgMeter, check_mkdir
+from tools.utils import AvgMeter, check_mkdir
 from model import DM2FNet
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'

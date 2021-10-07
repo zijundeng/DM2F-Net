@@ -5,12 +5,12 @@ import numpy as np
 import torch
 from torchvision import transforms
 
-from config import TEST_SOTS_ROOT
-from utils import check_mkdir
+from tools.config import TEST_SOTS_ROOT
+from tools.utils import check_mkdir
 from model import DM2FNet
 from datasets import SotsDataset
 from torch.utils.data import DataLoader
-from skimage.metrics import peak_signal_noise_ratio
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -37,7 +37,7 @@ def main():
         net.load_state_dict(torch.load(os.path.join(ckpt_path, exp_name, args['snapshot'] + '.pth')))
 
     net.eval()
-    psnrs = []
+    psnrs, ssims = [], []
 
     with torch.no_grad():
         for name, root in to_test.items():
@@ -59,13 +59,16 @@ def main():
                     gt = gts[i].cpu().numpy().transpose([1, 2, 0])
                     psnr = peak_signal_noise_ratio(gt, r)
                     psnrs.append(psnr)
-                    print('predicting for {} ({}/{}) [{}]: {:.4f}'.format(name, idx + 1, len(dataloader), fs[i], psnr))
+                    ssim = structural_similarity(gt, r, multichannel=True)
+                    ssims.append(ssim)
+                    print('predicting for {} ({}/{}) [{}]: PSNR {:.4f}, SSIM {:.4f}'
+                          .format(name, idx + 1, len(dataloader), fs[i], psnr, ssim))
 
                 for r, f in zip(res.cpu(), fs):
                     to_pil(r).save(
                         os.path.join(ckpt_path, exp_name,
                                      '(%s) %s_%s' % (exp_name, name, args['snapshot']), '%s.png' % f))
-    print(f"PSNR for {name}: {np.mean(psnrs):.6f}")
+    print(f"[{name}] PSNR: {np.mean(psnrs):.6f}, SSIM: {np.mean(ssims):.6f}")
 
 
 if __name__ == '__main__':

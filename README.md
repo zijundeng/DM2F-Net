@@ -30,16 +30,18 @@ Make sure you have `Python>=3.7` installed on your machine.
 
           pip install -r requirements.txt
 
-3. Prepare the dataset (RESIDE)
+* Prepare the dataset
 
-   1. Download the RESIDE dataset from the [official webpage](https://sites.google.com/site/boyilics/website-builder/reside).
+   * Download the RESIDE dataset from the [official webpage](https://sites.google.com/site/boyilics/website-builder/reside).
 
-   2. Make a directory `./data` and create a symbolic link for uncompressed data `./data/RESIDE`.
+   * Download the O-Haze dataset from the [official webpage](https://data.vision.ee.ethz.ch/cvl/ntire18//o-haze/).
+
+   * Make a directory `./data` and create a symbolic link for uncompressed data, e.g., `./data/RESIDE`.
 
 ## Training
 
-1. Set the path of pretrained ResNeXt model in resnext/config.py
-2. Set the path of datasets in config.py
+1. ~~Set the path of pretrained ResNeXt model in resnext/config.py~~
+2. Set the path of datasets in tools/config.py
 3. Run by ```python train.py```
 
 ~~The pretrained ResNeXt model is ported from the [official](https://github.com/facebookresearch/ResNeXt) torch version,
@@ -55,7 +57,7 @@ Training a model on a single ~~GTX 1080Ti~~ TITAN RTX GPU takes about ~~4~~ 5 ho
 
 ## Testing
 
-1. Set the path of five benchmark datasets in config.py.
+1. Set the path of five benchmark datasets in tools/config.py.
 2. Put the trained model in `./ckpt/`.
 2. Run by ```python test.py```
 
