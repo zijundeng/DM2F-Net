@@ -1,13 +1,15 @@
 import os
 import os.path
 
+import random
+import numpy as np
+from PIL import Image
+import scipy.io as sio
+
 import torch
 import torch.utils.data as data
-import scipy.io as sio
-from PIL import Image
-from torchvision.transforms import ToTensor
-import random
 from torchvision import transforms
+from torchvision.transforms import ToTensor
 
 to_tensor = ToTensor()
 
@@ -44,10 +46,10 @@ def make_dataset_ots(root):
 
 def make_dataset_ohaze(root: str, mode: str):
     img_list = []
-    for img_name in os.listdir(os.path.join(root, mode, 'img')):
+    for img_name in os.listdir(os.path.join(root, mode, 'hazy')):
         gt_name = img_name.replace('hazy', 'GT')
-        assert os.path.exist(os.path.join(root, mode, 'gt', gt_name))
-        img_list.append([os.path.join(root, mode, 'img', img_name),
+        assert os.path.exists(os.path.join(root, mode, 'gt', gt_name))
+        img_list.append([os.path.join(root, mode, 'hazy', img_name),
                          os.path.join(root, mode, 'gt', gt_name)])
     return img_list
 
@@ -259,10 +261,10 @@ class OHazeDataset(data.Dataset):
         self.imgs = make_dataset_ohaze(root, mode)
 
     def __getitem__(self, index):
-        img_path, gt_path = self.imgs[index]
+        haze_path, gt_path = self.imgs[index]
         name = os.path.splitext(os.path.split(haze_path)[1])[0]
 
-        img = Image.open(img_path).convert('RGB')
+        img = Image.open(haze_path).convert('RGB')
         gt = Image.open(gt_path).convert('RGB')
 
         if 'train' in self.mode:

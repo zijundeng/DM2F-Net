@@ -14,7 +14,7 @@ if __name__ == '__main__':
     ori_gt_root = os.path.join(ori_root, 'GT')
 
     patch_root = os.path.join(ohaze_root, 'train_crop_{}'.format(crop_size))
-    patch_haze_path = os.path.join(patch_root, 'img')
+    patch_haze_path = os.path.join(patch_root, 'hazy')
     patch_gt_path = os.path.join(patch_root, 'gt')
 
     os.makedirs(patch_root, exist_ok=True)
