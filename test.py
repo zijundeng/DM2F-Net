@@ -3,10 +3,11 @@ import os
 
 import numpy as np
 import torch
+from torch import nn
 from torchvision import transforms
 
 from tools.config import TEST_SOTS_ROOT, OHAZE_ROOT
-from tools.utils import check_mkdir, sliding_forward
+from tools.utils import AvgMeter, check_mkdir, sliding_forward
 from model import DM2FNet, DM2FNet_woPhy
 from datasets import SotsDataset, OHazeDataset
 from torch.utils.data import DataLoader
@@ -36,6 +37,8 @@ to_pil = transforms.ToPILImage()
 
 def main():
     with torch.no_grad():
+        criterion = nn.L1Loss().cuda()
+
         for name, root in to_test.items():
             if 'SOTS' in name:
                 net = DM2FNet().cuda()
@@ -56,13 +59,15 @@ def main():
             dataloader = DataLoader(dataset, batch_size=1)
 
             psnrs, ssims = [], []
+            loss_record = AvgMeter()
 
             for idx, data in enumerate(dataloader):
                 # haze_image, _, _, _, fs = data
                 haze, gts, fs = data
-                # print(haze_image.shape, gts.shape)
+                # print(haze.shape, gts.shape)
 
-                check_mkdir(os.path.join(ckpt_path, exp_name, '(%s) %s_%s' % (exp_name, name, args['snapshot'])))
+                check_mkdir(os.path.join(ckpt_path, exp_name,
+                                         '(%s) %s_%s' % (exp_name, name, args['snapshot'])))
 
                 haze = haze.cuda()
 
@@ -70,6 +75,9 @@ def main():
                     res = sliding_forward(net, haze).detach()
                 else:
                     res = net(haze).detach()
+
+                loss = criterion(res, gts.cuda())
+                loss_record.update(loss.item(), haze.size(0))
 
                 for i in range(len(fs)):
                     r = res[i].cpu().numpy().transpose([1, 2, 0])
@@ -87,7 +95,7 @@ def main():
                         os.path.join(ckpt_path, exp_name,
                                      '(%s) %s_%s' % (exp_name, name, args['snapshot']), '%s.png' % f))
 
-            print(f"[{name}] PSNR: {np.mean(psnrs):.6f}, SSIM: {np.mean(ssims):.6f}")
+            print(f"[{name}] L1: {loss_record.avg:.6f}, PSNR: {np.mean(psnrs):.6f}, SSIM: {np.mean(ssims):.6f}")
 
 
 if __name__ == '__main__':
